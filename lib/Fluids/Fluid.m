@@ -13,13 +13,13 @@ classdef (Abstract) Fluid < handle
        mw; % molecular weight, kg/mol
    end
    methods(Abstract)
-      update_PT(P,T); 
-      update_rhoP(rho,P);
-      update_rhoT(rho,T);
-      update_sT(s,T);
-      update_rhos(rho,s);
-      update_uT(u,T);
-      update(); % a default update method called if properties are set directly
+      s = update_PT(P,T); 
+      s = update_rhoP(rho,P);
+      s = update_rhoT(rho,T);
+      s = update_sT(s,T);
+      s = update_rhos(rho,s);
+      s = update_uT(u,T);
+      s = update(); % a default update method called if properties are set directly
    end
    methods 
        function d = density(obj)
@@ -33,6 +33,15 @@ classdef (Abstract) Fluid < handle
        end
        function t = temp(obj)
           t = obj.T;
+       end
+       function s = state(obj)
+           % On request for state, return all fluid properties
+           props = properties(obj);
+           for iprop = 1:length(props)
+                thisprop = props{iprop};
+                %%%Add logic here if you want to work with select properties
+                s.thisprop = obj.(thisprop);
+           end
        end
    end
 end

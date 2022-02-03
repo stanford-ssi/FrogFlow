@@ -1,9 +1,12 @@
 classdef (Abstract) Node  < handle
    properties 
+      intensive; % intensive fluid properties
+      extensive; % extensive fluid properties
+      upstream_connections; % array of upstream nodes/conduits
+      downstream_connection; % downstream node/conduit
       state; % full state including all variables desired in simulation output
       ode_state; % minimal state representation used for integration
       fluid; % the fluid associated with this object
-      volume; % 
    end
    methods
        function update(obj, ode_state) 
