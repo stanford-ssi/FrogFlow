@@ -3,12 +3,15 @@ classdef Simulation < handle
        state_record; % full record
        ode_state; % only the state variables that get integrated
        state; % full state, including derived values
-       component_handles; % array of all constituent components
-       update_list; % ordered array of nodes for updating
-       update_step = 0;
+       component_handles = {}; % array of all constituent components
+       update_list = {}; % ordered array of nodes for updating
        t_ind = 1;
+       comp_graph = ComponentGraph();
    end
    methods(Access=public)
+       function obj = Simulation()
+          Component.sim(obj); % pass new simulation object to components for building component tree!
+       end
        function out = run(obj, tspan, options)
            % TODO - include user-selected options for integration or
            % modeling
@@ -18,12 +21,12 @@ classdef Simulation < handle
            obj.trim_record(obj.record()); % record final state and trim record to final length
            out = obj.state_record; % output the state_record
        end
-       function comp = add_component(obj, comp_handle)
-          obj.component_handles.append(comp_handle);
-          if isa(comp_handle,'Node')
-             obj.update_list.append(comp_handle); 
-          end
-          comp = comp_handle;
+       function add_component(obj, comp_handle)
+          obj.component_handles{end+1} = comp_handle;
+       end
+       function disp(obj)
+           obj.comp_graph.chain(obj.component_handles);
+           disp(obj.comp_graph);
        end
    end
    methods(Access=private)

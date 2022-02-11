@@ -5,6 +5,6 @@ T = 298.15; %K
 R = nitrogen.Ru / 0.02803; % J/kg/K
 expected_density = P/(R*T);
 nitrogen.update_PT(P,T);
-assert(relative_error(expected_density, nitrogen.density)<1E-5);
-
-
+rel_err = relative_error(expected_density, nitrogen.density);
+rel_tol = 1E-5;
+assert(rel_err<rel_tol,"VDWGasTest:RelErr","Rel error :%0.5g > Rel. tolerance %0.5g",rel_err,rel_tol);

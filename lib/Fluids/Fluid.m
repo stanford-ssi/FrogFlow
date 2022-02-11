@@ -13,13 +13,16 @@ classdef (Abstract) Fluid < handle
        mw; % molecular weight, kg/mol
    end
    methods(Abstract)
-      s = update_PT(P,T); 
-      s = update_rhoP(rho,P);
-      s = update_rhoT(rho,T);
-      s = update_sT(s,T);
-      s = update_rhos(rho,s);
-      s = update_uT(u,T);
-      s = update(); % a default update method called if properties are set directly
+      s = update_PT(obj,P,T); 
+      s = update_rhoP(obj,rho,P);
+      s = update_rhoT(obj,rho,T);
+      s = update_rhoh(obj,rho,h);
+      s = update_rhos(obj,rho,s);
+      s = update_sT(obj,s,T);
+      s = update_uT(obj,u,T);
+      s = update_hT(obj,h,T);
+      s = update_hP(obj,h,P);
+      s = update(obj); % a default update method called if properties are set directly
    end
    methods 
        function d = density(obj)

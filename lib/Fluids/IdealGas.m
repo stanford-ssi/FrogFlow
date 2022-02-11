@@ -6,7 +6,6 @@ classdef IdealGas < Gas
     methods
         function obj = IdealGas(gamma,mw,mu_ref,T_ref)
             obj = obj@Gas();
-            disp(Gas)
             obj.mw = mw;
             obj.cv = obj.R/(gamma-1);
             obj.cp = obj.cv + obj.R;
@@ -41,14 +40,27 @@ classdef IdealGas < Gas
            obj.P = rho*T*obj.R;
            s = obj.update();
         end
-        function s = update_sT(~)
-           error("This update method not supported."); 
+        function s = update_rhoh(obj,rho,h)
+           obj.T = h/obj.cp;
+           obj.P = rho*obj.R*obj.T;
+           s = obj.update();
         end
         function s = update_rhos(~)
            error("This update method not supported."); 
         end
+        function s = update_sT(~)
+           error("This update method not supported."); 
+        end
         function s = update_uT(~)
            error("This update method not supported - state variables not independent."); 
+        end
+        function s = update_hT(~)
+           error("This update method not supported - state variables not independent."); 
+        end
+        function s = update_hP(obj,h,P)
+           obj.T = h/obj.cp;
+           obj.P = P;
+           s = obj.update();
         end
     end
 end
