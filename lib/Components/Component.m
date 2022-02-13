@@ -2,7 +2,6 @@ classdef (Abstract) Component < handle
     properties
         inlet = {} % array of component handles connected to inlet
         outlet = {} % array of component handles connected to outlet
-        update_order = 0 % order in which this component should be updated - higher number = update earlier
     end
     methods
         function obj = Component()

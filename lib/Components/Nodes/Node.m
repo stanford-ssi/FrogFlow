@@ -5,6 +5,7 @@ classdef (Abstract) Node  < Component
    end
    properties 
       state; % full state including all variables desired in simulation output
+      update_order = 0 % order in which this node should be updated - higher number = update earlier
    end
    methods
        function update(obj, ode_state) 

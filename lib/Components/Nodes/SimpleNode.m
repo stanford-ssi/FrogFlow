@@ -4,9 +4,12 @@ classdef SimpleNode < Node
         num;
     end
     methods
-        function obj = SimpleNode()
+        function obj = SimpleNode(update_order)
            obj = obj@Node();
            obj.num = SimpleNode.newsimple();
+           if nargin > 0
+              obj.update_order = update_order; 
+           end
         end
         function s = get_fluid(~) % get fluid at the requested height
             s = 0;

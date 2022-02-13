@@ -33,6 +33,7 @@ node5.attach_inlet_to(node2);
 node6.attach_inlet_to(node5);
 node7.attach_outlet_to(node4);
 node8.attach_inlet_to(node7);
+node8.attach_outlet_to(node5);
 disp(sim);
 for i = 1:length(sim.comp_graph.update_order)
     comp = sim.comp_graph.update_order{i};

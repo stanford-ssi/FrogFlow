@@ -31,9 +31,9 @@ classdef ComponentGraph < handle
                    mystr = append(mystr, "[ ");
                    for k = 1:maxlen(j)
                        if ~isempty(obj.component_chain{i,j}) && k <= length(obj.component_chain{i,j}.chain_id)
-                           mystr= append(mystr,int2str(obj.component_chain{i,j}.chain_id(k)),",");
+                           mystr= append(mystr,sprintf("%1.2f",obj.component_chain{i,j}.chain_id(k)),", ");
                        else
-                           mystr= append(mystr, "  ");
+                           mystr= append(mystr, "      ");
                        end
                    end
                    mystr=append(mystr, "] ");
@@ -71,13 +71,11 @@ classdef ComponentGraph < handle
            end
            obj.component_chain = ch;
            obj.update_order = up;
-           disp(up);
+           % GO THROUGH UPDATE ORDER AND CHANGE BASED ON USER-SET UDPATE
+           % ORDER
        end
    end
    methods(Static)
-       function update_order = chain_update_order(root)
-           % remove duplicates and return
-       end
        function [rootrow, chain, comp_chained, update_order] = make_chain(root_comp, chain_id, dir)
            % the chain is a NxM cell array where N is the total graph
            % height and M is the maximum graph width
@@ -87,7 +85,22 @@ classdef ComponentGraph < handle
            persistent exclude_list
            if nargin < 3
               exclude_list = {};
-              dir = ComponentGraph.Neither; % initially not inlet or outlet
+              dir = ComponentGraph.Neither; % initially neither inlet nor outlet
+           end
+           while ~isa(root_comp, 'Node')
+               if dir == ComponentGraph.Inlet
+                   next_comp = root_comp.inlet;
+               else
+                   next_comp = root_comp.outlet;
+               end
+               if ~isempty(next_comp) % if a component actually attached in the direction of search
+                   root_comp = next_comp; % iterate on this component
+               else % reached end of conduit chain without finding a node
+                   chain = {};
+                   update_order = {};
+                   rootrow = 1;
+                   return
+               end
            end
            this_node = ComponentGraphNode(root_comp, chain_id);
            chain = {this_node};
@@ -110,11 +123,19 @@ classdef ComponentGraph < handle
                        exclude_node = exclude_list{k};
                        if comp == exclude_node.comp_handle % found this node in the exclude chain!
                           exclude = exclude_node.chain_id;
-                          if ~any(ismember(exclude,this_node.chain_id),'all') || new_dir == dir % if the two are connected circularly, connect them with a warning!
+                          chain_overlap = ismember(floor(exclude),floor(this_node.chain_id));
+                          if any(chain_overlap) && new_dir == dir % if the two are connected circularly, give a warning!
                                warning("Circular relationship found in component tree. Default update order may not perform as expected.");
+                          end
+                          if new_dir == dir % the two are connected but this isn't just the last node, create a new id for them to share
                                new_id = ComponentGraphNode.newchain();
-                               this_node.chain_id(end+1)= new_id;
-                               exclude_node.chain_id(end+1) = new_id;
+                               if new_dir == ComponentGraph.Inlet
+                                    this_node.chain_id(end+1)= new_id + 0.01;
+                                    exclude_node.chain_id(end+1) = new_id;
+                               else
+                                    this_node.chain_id(end+1)= new_id;
+                                    exclude_node.chain_id(end+1) = new_id + 0.01; 
+                               end     
                           end
                           break
                        end
@@ -123,15 +144,24 @@ classdef ComponentGraph < handle
                        continue;
                    end
                    if first_chain 
-                       % If branching down (new_dir = outlet) and came from an inlet (dir = inlet), always make new chain
-                       % Otherwise, if its the first chain we've made from
-                       % this root, continue the same chain id
-                       [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, chain_id, new_dir);
+                       % If this is the first chain from this node, continue it
+                       if new_dir == ComponentGraph.Inlet
+                            [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, chain_id, new_dir);
+                            this_node.chain_id(1) = chainx{rootrowx,1}.chain_id(1) + 0.01; %update to get chain order
+                       else
+                            [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, chain_id+0.01, new_dir);
+                       end
                    else
                         new_chainid = ComponentGraphNode.newchain();
-                        this_node.chain_id(end+1) = new_chainid;
-                        [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, new_chainid, new_dir);
-                        % add to RHS of cell array
+                        if new_dir == ComponentGraph.Inlet
+                            this_node.chain_id(end+1) = new_chainid;
+                            hold_ind = length(this_node.chain_id);
+                            [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, new_chainid, new_dir);
+                            this_node.chain_id(hold_ind) = chainx{rootrowx,1}.chain_id(1) + 0.01; % update to get chain order
+                        else
+                            this_node.chain_id(end+1) = new_chainid;
+                            [rootrowx,chainx,~,update_orderx] = ComponentGraph.make_chain(comp, new_chainid+0.01, new_dir);
+                        end
                    end
                    % Assemble resulting chain array
                    chainsize = size(chain);
@@ -144,14 +174,14 @@ classdef ComponentGraph < handle
                        end
                        rootrow = rootrowx+1;
                        chain = chainx;
-                       update_order = [update_orderx update_order];
+                       update_order = [update_orderx update_order]; % use row offset to make this smarter
                    else
                        if first_chain
                            chain(rootrow+1:rootrow+chainxsize(1),chainsize(2):chainsize(2)+chainxsize(2)-1) = chainx;
                        else
                            chain(rootrow+1:rootrow+chainxsize(1),1+chainsize(2):chainsize(2)+chainxsize(2)) = chainx;
                        end
-                       update_order = [update_order update_orderx];
+                       update_order = [update_order update_orderx]; % use row offset to make this smarter
                    end
                    if first_chain
                       first_chain = false; 
