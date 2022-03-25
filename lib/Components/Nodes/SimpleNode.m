@@ -14,7 +14,7 @@ classdef SimpleNode < Node
         function s = get_fluid(~) % get fluid at the requested height
             s = 0;
         end
-        function ydot = statedot(~) % get state derivative
+        function ydot = odestatedot(~) % get state derivative
             ydot = 0;
         end
         function update(obj,~)

@@ -2,12 +2,10 @@ classdef ComponentGraphNode < handle
     properties
        comp_handle;
        chain_id;
-       update_order;
     end
     methods
         function obj = ComponentGraphNode(comp,chain_id)
             obj.comp_handle = comp;
-            obj.update_order = comp.update_order;
             obj.chain_id = [chain_id];
         end
     end

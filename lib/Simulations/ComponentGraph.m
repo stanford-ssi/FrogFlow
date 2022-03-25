@@ -1,27 +1,19 @@
 classdef ComponentGraph < handle
-   properties
-      component_chain = {};
-      update_order = {};
-   end
    properties(Constant)
       Inlet = 0;
       Outlet = 1;
       Neither = 2;
    end
-   methods
-       function update_list =  get_update_order(obj, comp_list)
-           update_list = [];
-           
-       end
-       function disp(obj)
-           chain_size = size(obj.component_chain);
+   methods(Static)
+       function disp(component_chain)
+           chain_size = size(component_chain);
            chainid_tree = cell(chain_size);
            maxlen = zeros(1,chain_size(2));
            for i = 1:chain_size(1)
                for j = 1:chain_size(2)
-                   if ~isempty(obj.component_chain{i,j})
-                        chainid_tree{i,j} = obj.component_chain{i,j}.chain_id;
-                        maxlen(j) = max(maxlen(j),length(obj.component_chain{i,j}.chain_id));
+                   if ~isempty(component_chain{i,j})
+                        chainid_tree{i,j} = component_chain{i,j}.chain_id;
+                        maxlen(j) = max(maxlen(j),length(component_chain{i,j}.chain_id));
                    end
                end
            end
@@ -30,8 +22,8 @@ classdef ComponentGraph < handle
                for j = 1:chain_size(2)
                    mystr = append(mystr, "[ ");
                    for k = 1:maxlen(j)
-                       if ~isempty(obj.component_chain{i,j}) && k <= length(obj.component_chain{i,j}.chain_id)
-                           mystr= append(mystr,sprintf("%1.2f",obj.component_chain{i,j}.chain_id(k)),", ");
+                       if ~isempty(component_chain{i,j}) && k <= length(component_chain{i,j}.chain_id)
+                           mystr= append(mystr,sprintf("%1.2f",component_chain{i,j}.chain_id(k)),", ");
                        else
                            mystr= append(mystr, "      ");
                        end
@@ -42,19 +34,19 @@ classdef ComponentGraph < handle
            end
            fprintf("\n")
        end
-       function chain(obj, comp_list)
+       function updatelist = make_updatelist(comp_list)
            comps_remaining = comp_list;
            ch = {};
            up = {};
            chid = ComponentGraphNode.newchain(1);
            while ~(isempty(comps_remaining))
-               [~, chhold, nodes_out,uphold] = obj.make_chain(comps_remaining{1},chid);
+               [~, chhold, compnodes_handled,uphold] = ComponentGraph.make_chain(comps_remaining{1},chid);
                rm_comp = false(1, numel(comps_remaining));
                for j = 1:length(comp_list)
                   comp = comp_list{j};
-                  for k = 1:length(nodes_out)
-                     node = nodes_out{k};
-                     if node.comp_handle == comp
+                  for k = 1:length(compnodes_handled)
+                     compnode = compnodes_handled{k};
+                     if ~isa(compnode.comp_handle, 'Node') || compnode.comp_handle == comp
                         rm_comp(k) = true;
                      end
                   end
@@ -69,13 +61,16 @@ classdef ComponentGraph < handle
                up = [up, uphold];
                chid = ComponentGraphNode.newchain();
            end
-           obj.component_chain = ch;
-           obj.update_order = up;
-           % GO THROUGH UPDATE ORDER AND CHANGE BASED ON USER-SET UDPATE
-           % ORDER
+           component_chain = ch;
+           update_order = up;
+           uphold = [];
+           for i = 1:numel(update_order)
+                node = update_order{i};
+                uphold = [uphold node.update_order];
+           end
+           [~,sortidx] = sort(uphold,'descend'); % sort by update order
+           updatelist = update_order(sortidx);
        end
-   end
-   methods(Static)
        function [rootrow, chain, comp_chained, update_order] = make_chain(root_comp, chain_id, dir)
            % the chain is a NxM cell array where N is the total graph
            % height and M is the maximum graph width
@@ -86,8 +81,10 @@ classdef ComponentGraph < handle
            if nargin < 3
               exclude_list = {};
               dir = ComponentGraph.Neither; % initially neither inlet nor outlet
-           end
+           end      
            while ~isa(root_comp, 'Node')
+               this_node = ComponentGraphNode(root_comp, chain_id);
+               exclude_list{end+1} = (this_node); % handling this root now - don't check it ever again      
                if dir == ComponentGraph.Inlet
                    next_comp = root_comp.inlet;
                else
@@ -103,10 +100,10 @@ classdef ComponentGraph < handle
                end
            end
            this_node = ComponentGraphNode(root_comp, chain_id);
+           exclude_list{end+1} = (this_node); % handling this root now - don't check it ever again   
            chain = {this_node};
            update_order = {root_comp};
            rootrow = 1; % row of the root comp in the output chain array - always in first column
-           exclude_list{end+1} = (this_node); % handling this root now - don't check it ever again          
            for i = 0:1
                if i == 0
                    comp_list = root_comp.inlet;

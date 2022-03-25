@@ -8,33 +8,39 @@ classdef (Abstract) Conduit < Component
        outlet_height = 0;
     end
     methods
-        function attach_inlet_to(obj,comp,height,recip)
-           if ~isempty(obj.inlet)
+        function obj = Conduit(child_conduit)
+            if nargin == 0
+                child_conduit = false;
+           end
+           obj@Component(child_conduit);
+        end
+        function attach_inlet_to(obj,comp,height,recip,warning_off)
+           if ~isempty(obj.inlet) && (nargin < 5 || ~warning_off)
                warning("Conduits can only have one connection at the inlet - overwriting existing connection.");
            end
            if nargin < 4
-              recip = false; % also create the reverse connection
+              recip = true; % also create the reverse connection
            end
            if nargin < 3
                height = Node.Bottom; % default to attaching at bottom
            end
-           obj.inlet = comp_handle;
+           obj.inlet = comp;
            obj.inlet_height = height;
            if recip
                 comp.attach_outlet_to(obj,height,false); % create reciprocal connection
            end
         end
-        function attach_outlet_to(obj,comp,height,recip)
-            if ~isempty(obj.inlet)
+        function attach_outlet_to(obj,comp,height,recip,warning_off)
+            if ~isempty(obj.outlet) && (nargin < 5 || ~warning_off)
                warning("Conduits can only have one connection at the outlet - overwriting existing connection.");
            end
            if nargin < 4
-              recip = false; % also create the reverse connection
+              recip = true; % also create the reverse connection
            end
            if nargin < 3
                height = Node.Bottom; % default to attaching at bottom
            end
-           obj.outlet = comp_handle;
+           obj.outlet = comp;
            obj.outlet_height = height;
            if recip
                 comp.attach_inlet_to(obj,height,false); % create reciprocal connection
@@ -54,12 +60,8 @@ classdef (Abstract) Conduit < Component
                 s = comp.get_fluid(h); 
             end
         end
-        function validate_fluid(obj, new_fluid)
-            if (isempty(obj.fluid))
-                obj.fluid = new_fluid;
-            elseif ~(new_fluid == obj.fluid)
-                error("Cannot connect two components with different fluids!"); 
-            end
-        end
+    end
+    methods(Abstract)
+        [mdot, Udot] = flowdot(obj);
     end
 end

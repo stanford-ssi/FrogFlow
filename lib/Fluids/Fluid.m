@@ -1,5 +1,5 @@
 classdef (Abstract) Fluid < handle
-   properties
+   properties(Abstract)
        P; % pressure, Pa
        T; % temperature, K
        rho; % density, kg/m3
@@ -13,16 +13,18 @@ classdef (Abstract) Fluid < handle
        mw; % molecular weight, kg/mol
    end
    methods(Abstract)
-      s = update_PT(obj,P,T); 
-      s = update_rhoP(obj,rho,P);
-      s = update_rhoT(obj,rho,T);
-      s = update_rhoh(obj,rho,h);
-      s = update_rhos(obj,rho,s);
-      s = update_sT(obj,s,T);
-      s = update_uT(obj,u,T);
-      s = update_hT(obj,h,T);
-      s = update_hP(obj,h,P);
-      s = update(obj); % a default update method called if properties are set directly
+      update_PT(obj,P,T); 
+      update_rhoP(obj,rho,P);
+      update_rhoT(obj,rho,T);
+      update_rhoh(obj,rho,h);
+      update_rhos(obj,rho,s);
+      update_rhou(obj,rho,u);
+      update_sT(obj,s,T);
+      update_uT(obj,u,T);
+      update_uP(obj,u,P);
+      update_hT(obj,h,T);
+      update_hP(obj,h,P);
+      update(obj); % a default update method called if properties are set directly
    end
    methods 
        function d = density(obj)
@@ -38,12 +40,11 @@ classdef (Abstract) Fluid < handle
           t = obj.T;
        end
        function s = state(obj)
-           % On request for state, return all fluid properties
+           % On request for state, return all fluid properties as struct
            props = properties(obj);
            for iprop = 1:length(props)
                 thisprop = props{iprop};
-                %%%Add logic here if you want to work with select properties
-                s.thisprop = obj.(thisprop);
+                s.(thisprop) = obj.(thisprop);
            end
        end
    end

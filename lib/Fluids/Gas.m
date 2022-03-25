@@ -1,4 +1,4 @@
-classdef (Abstract) Gas < Fluid
+classdef (Abstract) Gas  < Fluid
    properties(Constant)
       Ru = 8.31446261815324; % universal gas constant, J/K/mol 
       NA = 6.0221409E23; % avogadro's number, #/mole
