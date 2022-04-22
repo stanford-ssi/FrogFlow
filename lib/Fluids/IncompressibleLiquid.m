@@ -1,20 +1,9 @@
 classdef IncompressibleLiquid  < Fluid
     % incompressible fluid with constant specific heat
-    properties
-       P = 1E5; % pressure, Pa
-       T = 298; % temperature, K
-       rho = 1000; % density, kg/m3
-       cp = 4186; % specific heat at constant pressure, J/kg/K
-       cv = 4186; % specific heat at constant volume, J/kg/K
-       u = 1; % specific internal energy, J/kg
-       h = 1; %specific enthalpy, J/kg
-       s = 1; % specific entropy, J/kg/K
-       mu = 1; % dynamic viscosity, Pa*s
+    properties(Access=protected)
        A = 1;
        B = 1; 
        C = 1; % A/B/C used to calculate dynamic viscosity as A*10^(B/(T-C))
-       c = Inf; % speed of sound, m/s
-       mw = 0.01802; % molecular weight, kg/mol
     end
     methods
         function obj = IncompressibleLiquid(rho,mw,c,P,T,A,B,C)
@@ -27,8 +16,12 @@ classdef IncompressibleLiquid  < Fluid
             obj.A = A;
             obj.B = B;
             obj.C = C;
+            obj.c = Inf;
+            obj.k = 0.609; % thermal conductivity, W/m/K
+            obj.beta = 0; % coefficient of thermal expansion, =0 for incompressible
             obj.update();
         end
+        % STATE UPDATING --------------------------------------------------
         function update(obj)
             obj.u = obj.cv*obj.T;
             obj.h = obj.u + obj.P/obj.rho; 
@@ -73,6 +66,19 @@ classdef IncompressibleLiquid  < Fluid
         end
         function update_hT(~)
             error("This update method not supported - state variables not independent."); 
+        end
+        % STATE DERIVATIVES -----------------------------------------------
+        function dpdt = dPdT(~)
+            dpdt = 0;
+        end
+        function dpdrho = dPdrho(~)
+            dpdrho = 0;
+        end
+        function dudrh = dudrho(~)
+            dudrh = 0;
+        end
+        function dudt = dudT(obj)
+            dudt = obj.cv;
         end
     end
 end

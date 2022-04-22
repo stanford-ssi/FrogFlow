@@ -1,20 +1,8 @@
 classdef IdealGas < Gas
-    properties
+    properties(Access=protected)
        mu_ref = 1E-5; % dynamic viscosity @ T_ref, Pa*s 
        T_ref = 273.15; % reference temp for dynamic viscosity, K
-
-       P = 1E5; % pressure, Pa
-       T = 298; % temperature, K
-       rho = 1; % density, kg/m3
-       cp = 1; % specific heat at constant pressure, J/kg/K
-       cv = 1; % specific heat at constant volume, J/kg/K
-       u = 1; % specific internal energy, J/kg
-       h = 1; %specific enthalpy, J/kg
-       s = 1; % specific entropy, J/kg/K
-       mu = 1; % dynamic viscosity, Pa*s
-       c = 1; % speed of sound, m/s
-       mw = 1; % molecular weight, kg/mol
-   end
+    end
     methods
         function obj = IdealGas(gamma,mw,P,T,mu_ref,T_ref)
             obj = obj@Gas();
@@ -29,8 +17,11 @@ classdef IdealGas < Gas
             if nargin > 5
                 obj.T_ref = T_ref;
             end
+            obj.k = 0.02; % thermal conductivity, W/m/K, roughly 0.02 for ideal gases near room temp
+            obj.beta = 1; % coefficient of thermal expansion, 1/K
             obj.update();
         end
+        % STATE UPDATING -----------------------------------------
         function update(obj)
             if obj.P < 0
                 obj.P = 0;
@@ -44,6 +35,7 @@ classdef IdealGas < Gas
             obj.h = obj.cp * obj.T;
             obj.s = obj.R*(2.5+log(obj.mw/obj.rho/obj.NA*(4*pi/3/(obj.hplanck^2)*obj.u*(obj.mw/obj.NA)^2)^(1.5)));
             obj.mu = obj.mu_ref*sqrt(obj.T/obj.T_ref); % hard sphere model
+            obj.beta = 1/obj.T;
         end
         function update_PT(obj, P,T)
             obj.P = P;
@@ -91,6 +83,19 @@ classdef IdealGas < Gas
            obj.T = h/obj.cp;
            obj.P = P;
            obj.update();
+        end
+        % STATE DERIVATIVES -----------------------------------------------
+        function dpdt = dPdT(obj)
+            dpdt = obj.R*obj.rho;
+        end
+        function dpdrho = dPdrho(obj)
+            dpdrho = obj.R*obj.T;
+        end
+        function dudrh = dudrho(obj)
+            dudrh = -obj.cv*obj.P/(obj.rho^2)/obj.R;
+        end
+        function dudt = dudT(obj)
+            dudt = obj.cv;
         end
     end
 end

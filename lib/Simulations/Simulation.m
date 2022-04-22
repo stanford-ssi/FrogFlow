@@ -4,11 +4,15 @@ classdef Simulation < handle
        state; % full state, including derived values
        component_handles = {}; % array of all constituent components
        update_list = {}; % ordered array of nodes for updating
+       record_list = {}; % array of components for recording
        t_ind = 1;
        comp_graph = ComponentGraph();
        end_sim = false;
        msg_out;
        time = [];
+       last_t = 0;
+       t_step = 0; 
+       accel = 9.80665; %m/s2
    end
    methods(Access=public)
        function obj = Simulation()
@@ -69,11 +73,16 @@ classdef Simulation < handle
               i = 1;
               for j = 1:numel(obj.update_list)
                   node = obj.update_list{j};
-                  if ~isempty(node.ode_state)
-                      fin = length(node.ode_state) - 1;
+                  odest = node.get_ode_state();
+                  if ~isempty(odest)
+                      fin = length(odest) - 1;
                       node.update(t(k), y(k,i:i+fin));
                       i = i + fin + 1;
                   end
+              end
+              for j = 1:numel(obj.update_list)
+                  node = obj.update_list{j};
+                  node.odestatedot();
               end
               for j = 1:numel(obj.component_handles)
                   comp = obj.component_handles{j};
@@ -99,22 +108,26 @@ classdef Simulation < handle
           i = 1;
           for j = 1:numel(obj.update_list)
               node = obj.update_list{j};
-              if ~isempty(node.ode_state)
-                  fin = length(node.ode_state) - 1;
-                  odes(i:i+fin) = node.ode_state;
+              odest = node.get_ode_state();
+              if ~isempty(odest)
+                  fin = length(odest) - 1;
+                  odes(i:i+fin) = odest;
                   i = i + fin + 1;
               end
           end
        end
        function ydot = statedot(obj, t, state)
+          obj.t_step = t - obj.last_t; % update time step for use in numerical differentiation
+          obj.last_t = t; % update last time for next t step calc
           % Calculate the derivative vector of the system
           ydot = zeros(size(state));
           % Update all nodes
           i = 1;
           for j = 1:numel(obj.update_list)
               node = obj.update_list{j};
-              if ~isempty(node.ode_state)
-                  fin = length(node.ode_state) - 1;
+              odest = node.get_ode_state();
+              if ~isempty(odest)
+                  fin = length(odest) - 1;
                   node.update(t, state(i:i+fin));
                   i = i + fin + 1;
               end
@@ -123,8 +136,9 @@ classdef Simulation < handle
           i = 1;
           for j = 1:numel(obj.update_list)
               node = obj.update_list{j};
-              if ~isempty(node.ode_state)
-                  fin = length(node.ode_state) - 1;
+              odest = node.get_ode_state();
+              if ~isempty(odest)
+                  fin = length(odest) - 1;
                   ydot(i:i+fin) = node.odestatedot();
                   i = i + fin + 1;
               end

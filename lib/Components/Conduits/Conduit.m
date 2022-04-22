@@ -1,5 +1,5 @@
 classdef (Abstract) Conduit < Component
-    properties(Constant)
+    properties(Constant,Hidden)
        Inlet= 1
        Outlet = -1
     end

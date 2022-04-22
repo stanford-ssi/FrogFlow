@@ -40,26 +40,38 @@ classdef ComponentGraph < handle
            up = {};
            chid = ComponentGraphNode.newchain(1);
            while ~(isempty(comps_remaining))
-               [~, chhold, compnodes_handled,uphold] = ComponentGraph.make_chain(comps_remaining{1},chid);
-               rm_comp = false(1, numel(comps_remaining));
-               for j = 1:length(comp_list)
-                  comp = comp_list{j};
-                  for k = 1:length(compnodes_handled)
-                     compnode = compnodes_handled{k};
-                     if ~isa(compnode.comp_handle, 'Node') || compnode.comp_handle == comp
-                        rm_comp(k) = true;
-                     end
+              if isa(comps_remaining{1},'Node') && ~comps_remaining{1}.ischild
+                   [~, chhold, compnodes_handled,uphold] = ComponentGraph.make_chain(comps_remaining{1},chid);
+                   rm_comp = false(1, numel(comps_remaining));
+                   for j = 1:length(comps_remaining)
+                      comp = comps_remaining{j};
+                      if ~isa(comp, 'Node') || comp.ischild % if is invalid type for updating (i.e. a child Node or a non-Node component)
+                         rm_comp(j) = true;
+                         continue;
+                      end
+                      for k = 1:length(compnodes_handled)
+                         compnode = compnodes_handled{k};
+                         if compnode.comp_handle == comp
+                            rm_comp(j) = true;
+                         end
+                      end
+                   end
+                   comps_remaining(rm_comp) = [];
+                   if ~(isempty(comps_remaining))
+                      warning("There are disconnected chains in the Component structure.");
+                   end
+                   sizech = size(chhold);
+                   cols = size(ch,2);
+                   ch(1:sizech(1),cols+1:cols+sizech(2)) = chhold; 
+                   up = [up, uphold];
+                   chid = ComponentGraphNode.newchain();
+              else
+                  if numel(comps_remaining) > 1
+                        comps_remaining = comps_remaining(2:end);
+                  else
+                        break
                   end
-               end
-               comps_remaining(rm_comp) = [];
-               if ~(isempty(comps_remaining))
-                  warning("There are disconnected chains in the Component structure.");
-               end
-               sizech = size(chhold);
-               cols = size(ch,2);
-               ch(1:sizech(1),cols+1:cols+sizech(2)) = chhold; 
-               up = [up, uphold];
-               chid = ComponentGraphNode.newchain();
+              end
            end
            component_chain = ch;
            update_order = up;

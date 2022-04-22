@@ -6,6 +6,7 @@ classdef Water < IncompressibleLiquid
                 T = 298.15;
             end
             obj@IncompressibleLiquid(1000,0.018015,4184,P,T,2.414E-5,247.8,140);
+            obj.k = 0.609; % thermal conductivity override
         end
     end
 end

@@ -1,19 +1,24 @@
 classdef (Abstract) Node  < Component
-   properties(Constant)
+   properties(Constant,Hidden)
        Top = Inf;
        Bottom = 0 ;
    end
-   properties(Abstract)
-      fluid; % Fluid object owned by this node
+   properties(Abstract,Access=protected)
+      fluid;
       ode_state; % most recent minimal state representation from integration
-      update_order; % order in which this node should be updated - higher number = update earlier
+   end
+   properties(Hidden)
+      update_order = 0; % order in which this node should be updated - higher number = update earlier
    end
    methods
-       function obj = Node(child_node)
+       function obj = Node(child_node,update_order)
            if nargin == 0
                 child_node = false;
            end
            obj@Component(child_node);
+           if nargin > 1
+               obj.update_order = update_order;
+           end
        end
        function attach_inlet_to(obj,comp,height,recip)
            if nargin < 4
@@ -56,9 +61,12 @@ classdef (Abstract) Node  < Component
            end
            ydot = [mdot; Udot]; % mdot, udot
        end
+       function odest = get_ode_state(obj)
+            odest = obj.ode_state;
+       end
    end
    methods(Abstract)
       update(obj, t, odestate); % update based on new ode_state
-      get_fluid(obj, height); % get fluid at specified height
+      f = get_fluid(obj, height); % get fluid at specified height
    end
 end
