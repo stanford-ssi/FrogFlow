@@ -48,21 +48,33 @@ classdef REFPROPSatFluid < SatFluid
         end
         function update(obj,~)  
             T = obj.T;
-            obj.rho = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).rho, T); % J/kg
-            obj.h = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).h, T); % J/kg
-            obj.u = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).u, T); % J/kg
-            obj.cv = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cv, T);
-            obj.cp = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cp, T);
-            obj.s = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).s, T);
-            obj.mw = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.mw, T);
-            obj.mu = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).mu, T);
-            obj.c = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).c, T);
-            obj.k = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).k, T);
-            obj.beta = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).beta, T);
+%             obj.rho = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).rho, T); 
+%             obj.h = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).h, T); 
+%             obj.u = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).u, T); 
+%             obj.cv = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cv, T);
+%             obj.cp = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cp, T);
+%             obj.s = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).s, T);
+%             obj.mw = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.mw, T);
+%             obj.mu = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).mu, T);
+%             obj.c = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).c, T);
+%             obj.k = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).k, T);
+%             obj.beta = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).beta, T);
+            obj.rho = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).rho, T,'linear','extrap'); % J/kg
+            obj.h = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).h, T,'linear','extrap'); % J/kg
+            obj.u = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).u, T,'linear','extrap'); % J/kg
+            obj.cv = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cv, T,'linear','extrap');
+            obj.cp = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).cp, T,'linear','extrap');
+            obj.s = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).s, T,'linear','extrap');
+            obj.mw = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.mw, T,'linear','extrap');
+            obj.mu = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).mu, T,'linear','extrap');
+            obj.c = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).c, T,'linear','extrap');
+            obj.k = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).k, T,'linear','extrap');
+            obj.beta = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.(obj.type).beta, T,'linear','extrap');
         end
         function update_T(obj,T)
             obj.T = T;
-            obj.P = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.P, T);
+%             obj.P = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.P, T);
+            obj.P = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.P, T, 'linear','extrap');
             obj.update(true);
         end
         function update_P(obj,P)

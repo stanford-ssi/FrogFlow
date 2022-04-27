@@ -27,7 +27,6 @@ classdef Orifice < Conduit
                         end
                     end
                 end
-                obj.override_class = override_class;
             end
             obj.Cd = Cd;
             obj.A = A;

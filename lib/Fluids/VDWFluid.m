@@ -82,7 +82,7 @@ classdef (Abstract) VDWFluid < Fluid & SatFluid
             obj.c = sqrt(obj.R*obj.T/(obj.rho*obj.b-1)^2 - 2*obj.a*obj.rho);
             obj.u = obj.cv * obj.T - obj.a*obj.rho; 
             obj.h = obj.u + obj.P*v;
-            obj.s = obj.R*(2.5+log((1-(obj.rho/obj.mw*obj.b))*obj.mw/obj.rho/obj.NA*(4*pi/3/(obj.hplanck^2)*obj.u*(obj.mw/obj.NA)^2)^(1.5)));
+            obj.s = obj.R*(2.5+log((v-obj.b)*(obj.u+obj.a/v)^1.5));
             obj.mu = obj.mu_ref*sqrt(obj.T/obj.T_ref); % hard sphere model
             obj.beta = obj.R*(v^2)*(v-obj.b)/(obj.R*obj.T*(v^3)-2*obj.a*(v-obj.b)^2);
         end
