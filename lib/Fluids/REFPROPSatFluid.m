@@ -73,13 +73,12 @@ classdef REFPROPSatFluid < SatFluid
         end
         function update_T(obj,T)
             obj.T = T;
-%             obj.P = FastInterp1(obj.sat_NIST.data.T, obj.sat_NIST.data.P, T);
             obj.P = interp1(obj.sat_NIST.data.T, obj.sat_NIST.data.P, T, 'linear','extrap');
             obj.update(true);
         end
         function update_P(obj,P)
             obj.P = P;
-            obj.T = interp1(obj.sat_NIST.data.P, obj.sat_NIST.data.T, P);
+            obj.T = interp1(obj.sat_NIST.data.P, obj.sat_NIST.data.T, P, 'linear','extrap');
             obj.update(true);
         end
     end

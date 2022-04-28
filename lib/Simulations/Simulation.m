@@ -82,7 +82,7 @@ classdef Simulation < handle
               end
               for j = 1:numel(obj.update_list)
                   node = obj.update_list{j};
-                  node.odestatedot();
+                  node.odestatedot(); % calc statedot to update inlets/outlets
               end
               for j = 1:numel(obj.component_handles)
                   comp = obj.component_handles{j};

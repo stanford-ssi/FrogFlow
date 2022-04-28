@@ -11,7 +11,6 @@ classdef TwoPhaseOrifice < Orifice
     %   calc (add this to the general "check" function that also confirms
     %   in-range)
     properties(Constant, Hidden)
-        T_range = [180 309]; % K, min/max temp of flow calcs -- TODO: pull from SatFluid.Tmin, Tmax
         Pupnorm_range = [1 3]; % min/max upstream pressure range normalized by vapor pressure 
         Pdownnorm_range = [0 1]; % min/max downstream pressure range normalized by upstream pressure
         n = 100; % K, grid size in one dimension
@@ -34,6 +33,8 @@ classdef TwoPhaseOrifice < Orifice
               %              normalized by upstream pressure
               %     - choked: 3D grid of whether a given T/Pup/Pdown combo
               %              is choked in the ChokedHEM model
+              %     - fluid: satliq used for calculating these flow
+              %              parameters
 
        type_map = {{'IncompressibleLiquid',@Orifice.flowdot_SPI};
                    {'Gas',@Orifice.flowdot_gas};
@@ -44,9 +45,10 @@ classdef TwoPhaseOrifice < Orifice
                    {'SPI', @Orifice.flowdot_SPI};
                    {'Dyer', @TwoPhaseOrifice.flowdot_Dyer}; 
                    };
-    end
+    end 
     methods      
         function obj = TwoPhaseOrifice(Cd,A,varargin)
+            clear TwoPhaseOrifice.range_check
             if nargin == 2
                 type = 'SPI';
             elseif nargin > 2
@@ -89,6 +91,8 @@ classdef TwoPhaseOrifice < Orifice
             if ~strcmpi(type,'SPI') && isempty(obj.flow.data)
                 obj.flow.data = obj.calccritflow(satgas,satliq);
             end
+            warning('on',"TwoPhaseOrifice:FluidWarning")
+            warning('on','TwoPhaseOrifice:RangeWarning');
        end
     end
     methods(Static)
@@ -100,7 +104,7 @@ classdef TwoPhaseOrifice < Orifice
                 Tliq = satliq.T; 
 
                 % generate grids
-                T1 = linspace(TwoPhaseOrifice.T_range(1),TwoPhaseOrifice.T_range(2),TwoPhaseOrifice.n);
+                T1 = linspace(satliq.Tmin,satliq.Tmax,TwoPhaseOrifice.n);
                 Pupnormrange =  linspace(TwoPhaseOrifice.Pupnorm_range(1),TwoPhaseOrifice.Pupnorm_range(2),TwoPhaseOrifice.n);
                 Pdownnormrange =  linspace(TwoPhaseOrifice.Pdownnorm_range(1),TwoPhaseOrifice.Pdownnorm_range(2),TwoPhaseOrifice.n);
                 [T2, Pup2] = meshgrid(T1,Pupnormrange);
@@ -114,10 +118,9 @@ classdef TwoPhaseOrifice < Orifice
                     satliq.update_T(T1(i));
                     Psat = satliq.P; % vapor pressure (saturation)
                     Pv(i) = Psat;
-                    P1 = Pup3(:,i,:)*Psat;
-                    P2 = Pdown3(:,i,:).*P1;
-                    % Get upstream properties of interest (no for loop
-                    % needed, matrix math)
+                    P1 = squeeze(Pup3(:,i,:)*Psat);
+                    P2 = squeeze(Pdown3(:,i,:)).*P1;
+                    % Get upstream properties of interest 
                     rho_l_up = satliq.rho*ones(size(P1));
                     s_l_up = satliq.s*ones(size(P1));
                     % for now, calculate h as projection off sat value
@@ -160,7 +163,7 @@ classdef TwoPhaseOrifice < Orifice
                     h_l_down(x<0) = h1(x<0) + (P2(x<0)-P1(x<0))./rho_l_up(x<0);
                     x(x<0) = 0;
 
-                    rho2 = 1/(x.*(1./rho_g_down)+(1-x).*(1./rho_l_down));
+                    rho2 = 1./(x.*(1./rho_g_down)+(1-x).*(1./rho_l_down));
                     h2 = x.*h_g_down + (1-x).*h_l_down;
 
                     Ghem(:,i,:) = rho2.*sqrt(2*(h1-h2));
@@ -186,6 +189,7 @@ classdef TwoPhaseOrifice < Orifice
                 flow.Pup3 = Pup3;
                 flow.Pdown3 = Pdown3;
                 flow.Pcrit = Pcrit;
+                flow.fluid = satliq;
             end
             flowi = flow;
         end
@@ -197,7 +201,7 @@ classdef TwoPhaseOrifice < Orifice
             Tup = upstream.T;
             % 1D lookup of vapor pressure
             Pv = interp1(TwoPhaseOrifice.flow.data.T1,TwoPhaseOrifice.flow.data.Pv,Tup,'linear','extrap');
-            TwoPhaseOrifice.range_check(Pup/Pv,Tup,Pdown/Pup);
+            [Pup, Tup, Pdown] = TwoPhaseOrifice.range_check(Tup,Pup,Pdown,Pv,upstream);
             % check if choked 
             Pcrit = interp2(TwoPhaseOrifice.flow.data.T2,TwoPhaseOrifice.flow.data.Pup2,TwoPhaseOrifice.flow.data.Pcrit,Tup,max(1,Pup/Pv));
             % perform lookup on upstream pressure, upstream temp
@@ -222,7 +226,7 @@ classdef TwoPhaseOrifice < Orifice
             Tup = upstream.T;
             % 1D lookup of vapor pressure
             Pv = interp1(TwoPhaseOrifice.flow.data.T1,TwoPhaseOrifice.flow.data.Pv,Tup,'linear','extrap');
-            TwoPhaseOrifice.range_check(Pup/Pv,Tup,Pdown/Pup);
+            [Pup, Tup, Pdown] = TwoPhaseOrifice.range_check(Tup,Pup,Pdown,Pv,upstream);
             % perform lookup on upstream pressure, upstream temp, downstream pressure
             G = interp3(TwoPhaseOrifice.flow.data.T3,TwoPhaseOrifice.flow.data.Pup3,TwoPhaseOrifice.flow.data.Pdown3,TwoPhaseOrifice.flow.data.Ghem,Tup,max(1,Pup/Pv),Pdown/Pup);
             mdot = mult*Cd*A*G;
@@ -240,7 +244,7 @@ classdef TwoPhaseOrifice < Orifice
             Tup = upstream.T;
             % 1D lookup of vapor pressure
             Pv = interp1(TwoPhaseOrifice.flow.data.T1,TwoPhaseOrifice.flow.data.Pv,Tup,'linear','extrap');
-            TwoPhaseOrifice.range_check(Pup/Pv,Tup,Pdown/Pup);
+            [Pup, Tup, Pdown] = TwoPhaseOrifice.range_check(Tup,Pup,Pdown,Pv,upstream);
             % perform lookup on upstream pressure, upstream temp, downstream pressure
             Ghem = interp3(TwoPhaseOrifice.flow.data.T3,TwoPhaseOrifice.flow.data.Pup3,TwoPhaseOrifice.flow.data.Pdown3,TwoPhaseOrifice.flow.data.Ghem,Tup,max(1,Pup/Pv),Pdown/Pup);
             Gspi = sqrt(2*rhoup*(Pup-Pdown));
@@ -248,23 +252,35 @@ classdef TwoPhaseOrifice < Orifice
             G = (k*Gspi + Ghem)/(1+k);
             mdot = Cd*A*G;
             Udot = upstream.h*mdot;
+
             if nargout > 2 % do vargout
                 varargout{1} = 0;
                 varargout{2} = Pup-Pdown;
                 varargout{3} = mult;
             end
         end
-        function range_check(Pupnorm,Tup,Pdownnorm)
-            persistent warninggiven
-            if isempty(warninggiven)
-                if Pupnorm < TwoPhaseOrifice.Pupnorm_range(1) || Pupnorm > TwoPhaseOrifice.Pupnorm_range(2)
-                    warning('Upstream pressure ran out of the range of pre-calculated values. Results are interpolated.');
-                elseif Tup < TwoPhaseOrifice.T_range(1) || Tup > TwoPhaseOrifice.T_range(2)
-                    warning('Upstream temperature ran out of the range of pre-calculated values. Results are interpolated.');
-                elseif Pdownnorm < TwoPhaseOrifice.Pdownnorm_range(1) || Pdownnorm > TwoPhaseOrifice.Pdownnorm_range(2)
-                    warning('Downstream pressure ran out of the range of pre-calculated values. Results are interpolated.');
-                end
-                warninggiven = true;
+        function [Pup, Tup, Pdown] = range_check(Tup,Pup,Pdown,Pv,upstream)
+            % Check fluid compatibility
+            if ~strcmpi(class(upstream),class(TwoPhaseOrifice.flow.data.fluid))
+                warning("TwoPhaseOrifice:FluidWarning","The fluid flowing (%s) is not compatible with the current two-phase calculations (%s).\nClear workspace variables to force a re-calculation of flow variables.",class(upstream),class(TwoPhaseOrifice.flow.data.fluid));
+                warning('off',"TwoPhaseOrifice:FluidWarning")
+            end
+            % Check range
+            Pupnorm = Pup/Pv;
+            Pdownnorm = Pdown/Pup;
+
+            if Pupnorm < TwoPhaseOrifice.Pupnorm_range(1) || Pupnorm > TwoPhaseOrifice.Pupnorm_range(2)
+                Pup = Pv*min(max(Pupnorm,TwoPhaseOrifice.Pupnorm_range(1)),TwoPhaseOrifice.Pupnorm_range(2));
+                warning('TwoPhaseOrifice:RangeWarning','Upstream pressure ran out of the range of pre-calculated values. Value is clipped to the calculated range.');
+                warning('off','TwoPhaseOrifice:RangeWarning');
+            elseif Tup < TwoPhaseOrifice.flow.data.fluid.Tmin || Tup > TwoPhaseOrifice.flow.data.fluid.Tmax
+                Tup = min(max(Tup,TwoPhaseOrifice.flow.data.fluid.Tmin),TwoPhaseOrifice.flow.data.fluid.Tmax);
+                warning('TwoPhaseOrifice:RangeWarning','Upstream temperature ran out of the range of pre-calculated values. Value is clipped to the calculated range.');
+                warning('off','TwoPhaseOrifice:RangeWarning');
+            elseif Pdownnorm < TwoPhaseOrifice.Pdownnorm_range(1) || Pdownnorm > TwoPhaseOrifice.Pdownnorm_range(2)
+                Pdown = Pup*min(max(Pdownnorm,TwoPhaseOrifice.Pdownnorm_range(1)),TwoPhaseOrifice.Pdownnorm_range(2));
+                warning('TwoPhaseOrifice:RangeWarning''Upstream pressure ran out of the range of pre-calculated values. Value is clipped to the calculated range.');
+                warning('off','TwoPhaseOrifice:RangeWarning');
             end
         end
     end
