@@ -1,5 +1,8 @@
 classdef SPITank < Tank
-    % Simplest possible tank - incompressible liquid with an ullage gas. 
+    % Simplest possible tank - incompressible liquid with an ullage gas
+    properties(Hidden)
+        PT_event = SimEvent(SimEvent.END,'SPITank:PTEvent','SPITank pressure or temp went below absolute zero.');
+    end
     methods
         function obj = SPITank(ullage_fluid,liquid_fluid,Vtank,Vliq,Atank,update_order)
             if nargin < 6
@@ -7,7 +10,7 @@ classdef SPITank < Tank
             end
            obj@Tank(TankUllage(ullage_fluid,Vtank-Vliq), TankLiquid(liquid_fluid,Vliq),Vtank,Atank,update_order);
         end
-        function update(obj, ~, ode_state)
+        function update(obj, t, ode_state)
             liq = obj.liquid_node.get_fluid();
             ull = obj.ullage_node.get_fluid();
             ode_ullage = ode_state(1:2); % ullage ode
@@ -27,7 +30,7 @@ classdef SPITank < Tank
 
             % Ensure gas pressure/temp > zero
             if ull.P <= 0 || ull.T <= 0
-                Component.sim.set_flag("Tank Ullage pressure/temp went below zero.");
+                obj.PT_event.trigger(t);
             end
             
             % Update liquid fluid

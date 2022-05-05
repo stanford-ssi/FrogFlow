@@ -5,10 +5,9 @@ classdef Simulation < handle
        component_handles = {}; % array of all constituent components
        update_list = {}; % ordered array of nodes for updating
        record_list = {}; % array of components for recording
-       t_ind = 1;
        comp_graph = ComponentGraph();
-       end_sim = false;
-       msg_out;
+       end_sim_flag = false;
+       continue_sim_flag = false;
        time = [];
        last_t = 0;
        t_step = 0; 
@@ -19,19 +18,21 @@ classdef Simulation < handle
           Component.sim(obj); % pass new simulation object to components for building component tree!
        end
        function run(obj, tspan, options)
-           obj.clear_flag();
            % Create update list from component graph
            obj.update_list = obj.comp_graph.make_updatelist(obj.component_handles);
-           obj.initialize_record(tspan); % initialize the record, clearing and making arrays
            opts = odeset('Events',@(t,y) obj.terminalfunction(),'AbsTol',1E-6,'RelTol',1E-6);
            if nargin > 2
-                opts = odeset(options,opts);
+                opts = odeset(opts,options); % add in user odeset options
            end
-           [obj.time,y] = ode15s(@(t,y)obj.statedot(t,y),tspan,obj.ode_state,opts);
+           SimEvent.clear_events(); % reset events
+           [obj.time,y] = obj.integrate(tspan,opts);
+           while obj.continue_sim_flag && obj.time(end) < tspan(2)-1E-10
+                new_tspan = [obj.time(end)+1E-10 tspan(2)];
+                [newt, newy] = obj.integrate(new_tspan,opts);
+                obj.time =  [obj.time; newt];
+                y = [y; newy];
+           end
            obj.record(obj.time,y);
-           if ~isempty(obj.msg_out)
-                disp(obj.msg_out);
-           end
        end
        function add_component(obj, comp_handle)
           obj.component_handles{end+1} = comp_handle;
@@ -40,22 +41,27 @@ classdef Simulation < handle
            obj.comp_graph.chain(obj.component_handles);
            disp(obj.comp_graph);
        end
-       function set_flag(obj,msg)
-           
-           obj.end_sim = true;
-           if nargin>1
-                obj.msg_out = msg;
-           end
+       function clear_flags(obj)
+           obj.end_sim_flag = false;
+           obj.continue_sim_flag = false;
        end
-       function clear_flag(obj)
-           obj.msg_out = [];
-           obj.end_sim = false;
+       function end_sim(obj)
+           obj.end_sim_flag = true;
+       end
+       function continue_sim(obj)
+           obj.continue_sim_flag = true;
+           obj.end_sim();
        end
    end
    methods(Access=private)
+       function [t, y] = integrate(obj,tspan,opts)
+           obj.clear_flags();
+           [t,y] = ode15s(@(t,y)obj.statedot(t,y),tspan,obj.ode_state,opts);
+           SimEvent.update_events();
+       end
        function [value,isterminal,direction] = terminalfunction(obj)
            % Terminal function for ODE - can be flagged to end simulation
-           if obj.end_sim
+           if obj.end_sim_flag
                 value = 0;
                 isterminal = 1;
                 direction = 0;
@@ -69,6 +75,7 @@ classdef Simulation < handle
           % After getting integrated data, run back through and record at
           % each requested time step the full state.
           obj.initialize_record(t);
+          SimEvent.record_events(); % switch events to recording mode
           for k = 1:length(t)
               i = 1;
               for j = 1:numel(obj.update_list)
@@ -89,12 +96,10 @@ classdef Simulation < handle
                   comp.record_state(k);
               end
           end
-          obj.t_ind = obj.t_ind + 1; % increment timestep index
        end
        function initialize_record(obj, tspan)
            % Prepare all components for data recording by resetting their
            % record array
-           obj.t_ind = 1; % reset timestep index
            tlen = length(tspan);
           for i = 1:numel(obj.component_handles)
               comp_handle = obj.component_handles{i};

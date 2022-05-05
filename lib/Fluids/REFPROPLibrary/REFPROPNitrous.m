@@ -8,7 +8,7 @@ classdef REFPROPNitrous < REFPROPFluid & REFPROPSatFluid
             if nargin < 2
                 override = false;
             end
-            obj@REFPROPFluid('REFPROP_Nitrous_data.txt',override);
+            obj@REFPROPFluid('REFPROP_Nitrous_data.txt',type,override);
             obj@REFPROPSatFluid('REFPROP_SatNitrous_data.txt',type,override);
         end
         function loadmat(obj,matfilename)

@@ -1,5 +1,5 @@
 %% Two Phase Orifice Testing
-clear all; close all;
+clear TwoPhaseOrifice; close all;
 
 Tup = 293;
 Cd = 1.0;

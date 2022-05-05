@@ -7,7 +7,7 @@ fill_levs = [0.64, 0.90, 0.95, 0.85, 0.87, 0.87];
 Pi = 1E6*[4.502, 4.999, 4.777, 5.452, 4.091, 3.763];
 eq_cda = 1E-6*[86.6, 19.7, 28.0, 25.5, 0.155, 0.687];
 end_times = [4.91, 8.74, 5.56, 4.85, 19.88, 4.86];
-resi = 5;
+resi = 6;
 
 P_initial = Pi(resi); %600*6894.76; % Pa, initial pressure
 Cd = 1.0;
@@ -48,7 +48,7 @@ amb.attach_inlet_to(reforf);
 % vdwtank.attach_outlet_to(vdworf);
 % amb.attach_inlet_to(vdworf);
 
-sim.run([0 30])
+sim.run([0 1.5*end_times(resi)])
 
 %% Plotting
 
@@ -106,12 +106,11 @@ for plot_ind = 1:numel(tanks)
     title("\textbf{Tank Blowdown Mass}","Interpreter","latex");
 
     plot(sim.time,tank.ullage_node.record.m,[lt mk],'Color','k','MarkerSize',4,'DisplayName',[lab ' Ullage Mass']);
-%     plot(sim.time,tank.liquid_node.record.m,[lt '+'],'Color','k','DisplayName',[lab ' Liquid Mass']);
     plot(sim.time,tank.record.m,lt,'Color','k','DisplayName',[lab ' Total Mass']);
     pbaspect([1 1 1]);
     
     figure(f3); hold on;
     plot(sim.time,tank.record.fill_pct,lt,'Color','k','DisplayName',[lab ' Fill Pct']);
 end
-err = 100*abs(sim.time(end)-end_times(resi))/end_times(resi);
-fprintf("Sim ended at %0.2f sec, compared to research result %0.2f sec (err %.2f %%) \n", sim.time(end),end_times(resi),err);
+err = 100*abs(tank.liq_runout_event.t-end_times(resi))/end_times(resi);
+fprintf("Liquid runout occurred at %0.2f sec, compared to research result %0.2f sec (err %.2f %%) \n", tank.liq_runout_event.t,end_times(resi),err);

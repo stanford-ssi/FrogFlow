@@ -107,6 +107,13 @@ classdef REFPROPSatFluid < SatFluid
                         dataout.P = data(:,i);
                     case 'temperature'
                         dataout.T = data(:,i);
+                    case 'molarmass'
+                        dataout.mw = data(:,i)./1000;
+                end
+                if isempty(thistype)
+                    continue
+                end
+                switch thisvar
                     case 'heatofvapor'
                         dataout.hlv = data(:,i);
                     case 'int_energy'
@@ -133,8 +140,6 @@ classdef REFPROPSatFluid < SatFluid
                         dataout.(thistype).beta = data(:,i);
                     case 'cp_cv'
                         dataout.(thistype).g = data(:,i);
-                    case 'molarmass'
-                        dataout.mw = data(:,i)./1000;
                 end
             end
             [~,fn,~] = fileparts(txtfile);

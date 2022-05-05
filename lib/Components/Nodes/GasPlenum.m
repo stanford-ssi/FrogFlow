@@ -6,6 +6,7 @@ classdef GasPlenum < Node
     properties(Access=protected)
         fluid;
         ode_state = [];
+        PT_event = SimEvent(SimEvent.END,'SPITank:PTEvent','SPITank pressure or temp went below absolute zero.');
     end
     methods
         function obj = GasPlenum(fluid,V,P,T,update_order)
@@ -20,12 +21,12 @@ classdef GasPlenum < Node
            obj.m = obj.fluid.rho*V;
            obj.ode_state = [obj.m; obj.m*obj.fluid.u];
         end
-        function update(obj, ~, ode_state)
+        function update(obj, t, ode_state)
             obj.ode_state = ode_state;
             obj.m = ode_state(1);
             obj.fluid.update_rhou(ode_state(1)/obj.V,ode_state(2)/ode_state(1));
             if obj.fluid.P <= 0 || obj.fluid.T <= 0
-                Component.sim.set_flag("Gas plenum pressure/temp went below zero.");
+                obj.PT_event.trigger(t); %trigger simulation end
             end
         end
         function f = get_fluid(obj, ~)

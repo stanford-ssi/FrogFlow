@@ -21,9 +21,6 @@ classdef TankUllage < Node
         end
         function update(obj, ~, ode_state)
             obj.ode_state = ode_state;
-            if obj.fluid.P <= 0 || obj.fluid.T <= 0
-                Component.sim.set_flag("Tank Ullage pressure/temp went below zero.");
-            end
         end
         function ydot = odestatedot(obj,inlet,outlet,dVdt)
            % first, collect flow from intra-tank components
