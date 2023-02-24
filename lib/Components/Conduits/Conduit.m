@@ -30,6 +30,9 @@ classdef (Abstract) Conduit < Component
                 comp.attach_outlet_to(obj,height,false); % create reciprocal connection
            end
         end
+        function detach_inlets(obj)
+            obj.inlet = {};
+        end
         function attach_outlet_to(obj,comp,height,recip,warning_off)
             if ~isempty(obj.outlet) && (nargin < 5 || ~warning_off)
                warning("Conduits can only have one connection at the outlet - overwriting existing connection.");
@@ -45,6 +48,9 @@ classdef (Abstract) Conduit < Component
            if recip
                 comp.attach_inlet_to(obj,height,false); % create reciprocal connection
            end
+        end
+        function detach_outlets(obj)
+            obj.outlet = {};
         end
         function s = get_fluid(obj, dir)
             if nargin < 2 || dir == obj.Inlet
