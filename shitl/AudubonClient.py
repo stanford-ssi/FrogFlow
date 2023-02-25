@@ -7,17 +7,16 @@ from .cmd_pb2 import *
 from .SlateClient import SlateClient
 
 class AudubonClient:
-    def __init__(self, quail_ip, cmd_port, my_ip, ground_port):
-        self.quail_ip = quail_ip
-        self.ground_port = ground_port
-        self.my_ip = my_ip
-        self.cmd_port = cmd_port
+    def __init__(self, quail_addr, gnd_addr):
+        self.quail_addr = quail_addr
+        self.gnd_addr = gnd_addr
         self.cmd_sock = None
         self.my_seq = 0
         self.ground_seq = 0
         self.slates = {}
         self.name = None
         self.version = None
+        self.slates_queue = asyncio.Queue()
 
     def __enter__(self):
         return self
@@ -25,33 +24,46 @@ class AudubonClient:
     async def connect(self):
         while True:
             try:
-                self.cmd_sock = await asyncio.wait_for(asyncudp.create_socket(remote_addr=(self.quail_ip, self.cmd_port)), timeout=1.0)
+                self.cmd_sock = await asyncio.wait_for(asyncudp.create_socket(remote_addr=self.quail_addr), timeout=1.0)
             except Exception as e:
-                print(f"Device \"{self.name}\" at {self.quail_ip}:{self.cmd_port} ›connect with \"{e}\". Retrying in {1 if self.cmd_sock else 5} seconds.")
+                print(f"Device \"{self.name}\" at {self.quail_addr[0]}:{self.quail_addr[1]} ›connect with \"{e}\". Retrying in {1 if self.cmd_sock else 5} seconds.")
                 await asyncio.sleep(1 if self.cmd_sock else 5)
                 continue
             else:
-                print(f"Quail \"{self.name}\" at {self.quail_ip}:{self.cmd_port} connected.")
+                print(f"Quail at {self.quail_addr[0]}:{self.quail_addr[1]} connected.")
                 break
 
         while True:
             try:
-                self.gnd_sock = await asyncio.wait_for(asyncudp.create_socket(remote_addr=(self.my_ip, self.ground_port)), timeout=1.0)
+                self.gnd_sock = await asyncio.wait_for(asyncudp.create_socket(local_addr=self.gnd_addr), timeout=1.0)
             except Exception as e:
-                print(f"Device \"{self.name}\" at {self.ip}:{self.ground_port} ›connect with \"{e}\". Retrying in {1 if self.cmd_sock else 5} seconds.")
+                print(f"Device \"{self.name}\" at {self.gnd_addr[0]}:{self.gnd_addr[1]} ›connect with \"{e}\". Retrying in {1 if self.cmd_sock else 5} seconds.")
                 await asyncio.sleep(1 if self.cmd_sock else 5)
                 continue
             else:
-                print(f"Ground Station \"{self.name}\" at {self.my_ip}:{self.ground_port} connected.")
+                print(f"Ground Station at {self.gnd_addr[0]}:{self.gnd_addr[1]} connected.")
                 break
+
+    async def from_quail(self):
+        while True:
+            data, _ = await self.cmd_sock.recvfrom()
+            print("message from quail")
+            await self.check_slate_info(data)
+            await self.check_metaslate(data)
+            await self.check_udp_stream(data)
+            self.gnd_sock.sendto(data, self.gnd_addr)
 
     async def to_quail(self):
         while True:
-            data, _ = await self.gnd_sock.recvfrom()
-            if not self.check_slate_info(data) and not self.check_metaslate(data):
-                self.check_udp_stream(data)
-            else:
+            data, addr = await self.gnd_sock.recvfrom()
+            self.gnd_addr = addr
+            print("message for quail")
+            start_udp = await self.intercept_udp_stream(data)
+            if not start_udp:
                 self.cmd_sock.sendto(data)
+
+    async def ready(self):
+        await self.slates_queue.get()
 
     async def check_metaslate(self, data):
         read_msg = Message()
@@ -66,44 +78,51 @@ class AudubonClient:
                 metaslate_data = zlib.decompress(read_msg.response_metaslate.metaslate)
                 metaslate_data = msgpack.unpackb(metaslate_data)
                 slate.metaslate = metaslate_data
-                slate.connect()
                 return True
         
-# request the device target a specific slate at the provided address and port
-    async def check_udp_stream(self, data):
+    # request the device target a specific slate at the provided address and port
+    async def intercept_udp_stream(self, data):
         read_msg = Message()
         read_msg.ParseFromString(data)
-        assert read_msg.WhichOneof('message') == 'start_udp'
+        print('type', read_msg.WhichOneof('message'))
+        if read_msg.WhichOneof('message') != 'start_udp':
+            return False
 
-        hash = read_msg.start_udp.hash
+        # hash = read_msg.start_udp.hash
         self.ground_seq = read_msg.sequence
         self.my_seq += 1
         read_msg.sequence = self.my_seq
+        print("I want", read_msg.start_udp.port)
         read_msg.start_udp.port += 1
         self.cmd_sock.sendto(read_msg.SerializeToString())
 
-        data, _ = await self.cmd_sock.recvfrom()
+        return True
+
+    async def check_udp_stream(self, data):
         read_msg = Message()
         read_msg.ParseFromString(data)
-        assert read_msg.sequence == self.my_seq
-        assert read_msg.WhichOneof('message') == 'ack'
+        if read_msg.sequence != self.my_seq or read_msg.WhichOneof('message') != 'ack':
+            return False
 
         for slate in self.slates.values():
-            if slate.hash == hash:
-                slate.connect(read_msg.start_udp.port, read_msg.start_udp.port - 1)
+            # should be checking for the slate with the right hash...
+            await slate.connect(read_msg.start_udp.port, read_msg.start_udp.port - 1)
+            self.slates_queue.put_nowait(slate.name)
 
         read_msg.sequence = self.ground_seq
         read_msg.start_udp.port -= 1
         self.gnd_sock.sendto(read_msg.SerializeToString())
 
-# qeries the device for a list of available slates, and populates the results into self.slates
+        return True
+
+    # qeries the device for a list of available slates, and populates the results into self.slates
     async def check_slate_info(self, data):
-        print("trying?")
         read_msg = Message()
         read_msg.ParseFromString(data)
-        if read_msg.WhichOneof('message') == 'respond_info':
+        print('type:', read_msg.WhichOneof('message'))
+        if read_msg.WhichOneof('message') != 'respond_info':
             return False
-        print(f"Recieved slate list from {self.quail_ip}, thanks {self.ground_ip}!")
+        print(f"Recieved slate list from {self.quail_addr[0]}, thanks {self.gnd_addr[0]}:{self.gnd_addr[1]}!")
 
         self.name = read_msg.respond_info.name
         self.version = read_msg.respond_info.version

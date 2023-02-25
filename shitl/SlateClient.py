@@ -14,13 +14,17 @@ class SlateClient:
         self.udp_snd_sock = None
 
     async def connect(self, quail_port, gnd_port):
-        try:
-            self.udp_rcv_sock = await asyncudp.create_socket(remote_addr=('0', quail_port))
-            self.udp_snd_sock = await asyncudp.create_socket(remote_addr=('0', gnd_port))
-        except Exception as e:
-            print(f"Slate \"{self.audubon.name}.{self.name}\" Disconnected")
-        else:
-            print(f"Slate \"{self.audubon.name}.{self.name}\" Connected")
+        while True:
+            try:
+                self.udp_rcv_sock = await asyncudp.create_socket(local_addr=(self.audubon.quail_addr[0], quail_port))
+                print('slate stream from quail')
+                self.udp_snd_sock = await asyncudp.create_socket(remote_addr=(self.audubon.gnd_addr[0], gnd_port))
+                print('slate stream to ground')
+            except Exception as e:
+                print(f"Slate \"{self.audubon.name}.{self.name}\" Disconnected")
+            else:
+                print(f"Slate \"{self.audubon.name}.{self.name}\" Connected")
+            await asyncio.sleep(2)
 
     async def recv_slate(self):
         while True:

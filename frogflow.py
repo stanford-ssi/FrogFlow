@@ -21,15 +21,16 @@ class Server:
         web.run_app(self.app, port=8081)
 
     async def startup(self, app):
-        self.audubon = AudubonClient('192.168.2.2', 1002, '192.168.2.3', 1002)
+        self.audubon = AudubonClient(('192.168.2.2', 1002), ('127.0.0.1', 9999))
         await self.audubon.connect()
         self.app.forward_to_quail = asyncio.create_task(self.audubon.to_quail())
-        # await self.audubon.slates['telemetry'].recv_slate() # set up is done
-        # self.app.quail_rx_task = asyncio.create_task(self.quail_rx_task())
-        # self.app.quail_tx_task = asyncio.create_task(self.quail_tx_task())
-        # self.engine = Engine(self.audubon.slates["telemetry"])
-        # self.app.sensors = asyncio.create_task(self.engine.run())
-        # self.app.actuators = asyncio.create_task(self.engine.update())
+        self.app.forward_to_quail = asyncio.create_task(self.audubon.from_quail())
+        await self.audubon.ready() # set up is done
+        self.app.quail_rx_task = asyncio.create_task(self.quail_rx_task())
+        self.app.quail_tx_task = asyncio.create_task(self.quail_tx_task())
+        self.engine = Engine(self.audubon.slates["telemetry"])
+        self.app.sensors = asyncio.create_task(self.engine.run())
+        self.app.actuators = asyncio.create_task(self.engine.update())
 
     async def quail_rx_task(self):
         while (True):
