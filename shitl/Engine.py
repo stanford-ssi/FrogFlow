@@ -3,24 +3,34 @@ import matlab.engine
 from shitl.Wrappers import *
 
 class Engine:
+    MATLAB = None
+
     def __init__(self, slate):
         self.slate = slate
 
-        self.eng = matlab.engine.start_matlab()
-        self.eng.Olympus(nargout=0)
+        Engine.init_matlab()
 
         self.tanks = [
-            Tank("tank", self.eng, self.slate),
-            Tank("ambient", self.eng, self.slate)
+            Tank("tank", Engine.MATLAB, self.slate),
+            Tank("ambient", Engine.MATLAB, self.slate)
         ]
         self.valves = [
-            Valve("orifice", self.tanks[0], self.tanks[1], self.eng)
+            Valve("orifice", self.tanks[0], self.tanks[1], self.MATLAB)
         ]
 
-        self.sim = Simulation("sim", self.eng)
+        self.sim = Simulation("sim", self.MATLAB)
+
+    @classmethod
+    def init_matlab(cls):
+        if Engine.MATLAB == None:
+            print("Starting Matlab Engine")
+            Engine.MATLAB = matlab.engine.start_matlab()
+            Engine.MATLAB.Olympus(nargout=0)
+            print("Engine Started - Let's Boogy")
 
     async def run(self):
         while True:
+            print("Simulation updating...")
             self.sim.run()
             for tank in self.tanks:
                 tank.update()

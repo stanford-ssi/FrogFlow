@@ -11,12 +11,10 @@ class AudubonClient:
         self.quail_addr = quail_addr
         self.gnd_addr = gnd_addr
         self.cmd_sock = None
-        self.my_seq = 0
-        self.ground_seq = 0
         self.slates = {}
         self.name = None
         self.version = None
-        self.slates_queue = asyncio.Queue()
+        self.setup_telemtry = asyncio.Queue()
 
     def __enter__(self):
         return self
@@ -47,23 +45,29 @@ class AudubonClient:
     async def from_quail(self):
         while True:
             data, _ = await self.cmd_sock.recvfrom()
-            print("message from quail")
+
             await self.check_slate_info(data)
             await self.check_metaslate(data)
-            await self.check_udp_stream(data)
+
+            msg = Message()
+            msg.ParseFromString(data)
+            print("Intercepted from quail:", msg.WhichOneof('message'))
+
             self.gnd_sock.sendto(data, self.gnd_addr)
 
     async def to_quail(self):
         while True:
             data, addr = await self.gnd_sock.recvfrom()
             self.gnd_addr = addr
-            print("message for quail")
             start_udp = await self.intercept_udp_stream(data)
             if not start_udp:
+                msg = Message()
+                msg.ParseFromString(data)
+                print("Intercepted to quail:", msg.WhichOneof('message'))
                 self.cmd_sock.sendto(data)
 
     async def ready(self):
-        await self.slates_queue.get()
+        await self.setup_telemtry.get()
 
     async def check_metaslate(self, data):
         read_msg = Message()
@@ -84,34 +88,18 @@ class AudubonClient:
     async def intercept_udp_stream(self, data):
         read_msg = Message()
         read_msg.ParseFromString(data)
-        print('type', read_msg.WhichOneof('message'))
         if read_msg.WhichOneof('message') != 'start_udp':
             return False
 
-        # hash = read_msg.start_udp.hash
-        self.ground_seq = read_msg.sequence
-        self.my_seq += 1
-        read_msg.sequence = self.my_seq
-        print("I want", read_msg.start_udp.port)
-        read_msg.start_udp.port += 1
-        self.cmd_sock.sendto(read_msg.SerializeToString())
-
-        return True
-
-    async def check_udp_stream(self, data):
-        read_msg = Message()
-        read_msg.ParseFromString(data)
-        if read_msg.sequence != self.my_seq or read_msg.WhichOneof('message') != 'ack':
-            return False
-
+        hash = read_msg.start_udp.hash
+        port = read_msg.start_udp.port
         for slate in self.slates.values():
-            # should be checking for the slate with the right hash...
-            await slate.connect(read_msg.start_udp.port, read_msg.start_udp.port - 1)
-            self.slates_queue.put_nowait(slate.name)
-
-        read_msg.sequence = self.ground_seq
-        read_msg.start_udp.port -= 1
-        self.gnd_sock.sendto(read_msg.SerializeToString())
+            if slate.hash == hash:
+                await slate.connect(port)
+                if slate.name == 'telemetry':
+                    self.setup_telemtry.put_nowait(1)
+                read_msg.start_udp.port = slate.udp_rcv_sock._transport._sock.getsockname()[1]
+        self.cmd_sock.sendto(read_msg.SerializeToString())
 
         return True
 
@@ -119,7 +107,6 @@ class AudubonClient:
     async def check_slate_info(self, data):
         read_msg = Message()
         read_msg.ParseFromString(data)
-        print('type:', read_msg.WhichOneof('message'))
         if read_msg.WhichOneof('message') != 'respond_info':
             return False
         print(f"Recieved slate list from {self.quail_addr[0]}, thanks {self.gnd_addr[0]}:{self.gnd_addr[1]}!")
@@ -134,17 +121,10 @@ class AudubonClient:
                 f"Registered new slate \"{slate.name}\" with hash {hex(slate.hash)}")
         return True
 
-    async def write_cmd(self, cmd_msg):
+    async def write_cmd(self, cmd_msg, forward=True):
         assert cmd_msg.WhichOneof('message') == 'set_field'
-        self.seq += 1
-        cmd_msg.sequence = self.seq
-        self.cmd_sock.sendto(cmd_msg.SerializeToString())
-
-        data, _ = await self.cmd_sock.recvfrom()
-        read_msg = Message()
-        read_msg.ParseFromString(data)
-        assert read_msg.sequence == self.seq
-        assert read_msg.WhichOneof('message') == 'ack'
+        if forward:
+            self.cmd_sock.sendto(cmd_msg.SerializeToString())
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.cmd_sock:

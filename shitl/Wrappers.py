@@ -31,7 +31,7 @@ class Tank:
             handler()
 
     def update_handlers(self):
-        self.handlers = [lambda: self.slate.set_field(channel, self.eng.eval(channel)) for channel in self.slate.metaslate["channels"] if self.name in channel]
+        self.handlers = [lambda: self.slate.set_field(channel, self.eng.eval(channel), forward=False) for channel in self.slate.metaslate["channels"] if self.name in channel]
     
 class Valve:
     def __init__(self, name, inlet, outlet, engine):
@@ -41,8 +41,8 @@ class Valve:
         self.outlet = outlet
         self.value = -1
 
-    async def update(self, slate):
-        if slate[self.name] != self.value:
+    def update(self, slate):
+        if self.name in slate and slate[self.name] != self.value:
             self.value = slate[self.name]
             self.attach() if self.value else self.detach()
 

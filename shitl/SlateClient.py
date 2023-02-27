@@ -13,17 +13,18 @@ class SlateClient:
         self.udp_rcv_sock = None
         self.udp_snd_sock = None
 
-    async def connect(self, quail_port, gnd_port):
+    async def connect(self, gnd_port=None):
         while True:
             try:
-                self.udp_rcv_sock = await asyncudp.create_socket(local_addr=(self.audubon.quail_addr[0], quail_port))
-                print('slate stream from quail')
-                self.udp_snd_sock = await asyncudp.create_socket(remote_addr=(self.audubon.gnd_addr[0], gnd_port))
-                print('slate stream to ground')
+                if self.udp_rcv_sock == None:
+                    self.udp_rcv_sock = await asyncudp.create_socket(local_addr=('0', 0))
+                if gnd_port != None:
+                    self.udp_snd_sock = await asyncudp.create_socket(remote_addr=(self.audubon.gnd_addr[0], gnd_port))
             except Exception as e:
                 print(f"Slate \"{self.audubon.name}.{self.name}\" Disconnected")
             else:
                 print(f"Slate \"{self.audubon.name}.{self.name}\" Connected")
+                break
             await asyncio.sleep(2)
 
     async def recv_slate(self):
@@ -31,9 +32,8 @@ class SlateClient:
             try:
                 recv = await asyncio.wait_for(self.udp_rcv_sock.recvfrom(), timeout=1.0)
                 message, _ = recv
-                self.udp_snd_sock(message)
+                self.udp_snd_sock.sendto(message)
             except Exception as e:
-                await self.connect()
                 continue
 
             slate = {}
@@ -51,7 +51,7 @@ class SlateClient:
 
             return slate
 
-    async def set_field(self,channel,value):
+    async def set_field(self,channel,value,forward=True):
         channel_meta = self.metaslate["channels"][channel]
         msg = Message()
         msg.set_field.SetInParent()
@@ -70,7 +70,7 @@ class SlateClient:
             print("don't know how to write!")
 
         try:
-            await asyncio.wait_for(self.audubon.write_cmd(msg), timeout=1.0)
+            await asyncio.wait_for(self.audubon.write_cmd(msg,forward=forward), timeout=1.0)
         except Exception as e:
             print(repr(e))
             print('Failed to Send')
