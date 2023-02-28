@@ -42,7 +42,9 @@ class Engine:
 
     async def update(self):
         while True:
-            print("updating engine")
             slate = await self.slate.recv_slate()
-            for valve in self.valves:
-                valve.update(slate)
+            try:
+                for valve in self.valves:
+                    valve.update(slate)
+            except:
+                print("Failure while updating valves")
