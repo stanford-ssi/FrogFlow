@@ -52,6 +52,9 @@ class SlateClient:
             return slate
 
     async def set_field(self,channel,value,forward=True):
+        if not forward:
+            print("Setting", channel, "to", value)
+
         channel_meta = self.metaslate["channels"][channel]
         msg = Message()
         msg.set_field.SetInParent()

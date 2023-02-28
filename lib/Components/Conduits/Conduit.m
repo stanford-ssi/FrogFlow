@@ -31,7 +31,9 @@ classdef (Abstract) Conduit < Component
            end
         end
         function detach_inlets(obj)
-            obj.inlet = {};
+            comp = obj.inlet
+            obj.inlet = {}
+            comp.detach_outlets()
         end
         function attach_outlet_to(obj,comp,height,recip,warning_off)
             if ~isempty(obj.outlet) && (nargin < 5 || ~warning_off)
@@ -50,6 +52,7 @@ classdef (Abstract) Conduit < Component
            end
         end
         function detach_outlets(obj)
+            obj.outlet.detach_inlets()
             obj.outlet = {};
         end
         function s = get_fluid(obj, dir)

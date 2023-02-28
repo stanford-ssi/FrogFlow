@@ -12,8 +12,11 @@ class AudubonClient:
         self.gnd_addr = gnd_addr
         self.cmd_sock = None
         self.slates = {}
+        self.seq = 1 # offset to avoid clash
+        self.gnd_seq = 0 
         self.name = None
         self.version = None
+        self.no_forward = asyncio.Queue()
         self.setup_telemtry = asyncio.Queue()
 
     def __enter__(self):
@@ -48,23 +51,29 @@ class AudubonClient:
 
             await self.check_slate_info(data)
             await self.check_metaslate(data)
-
+            
             msg = Message()
             msg.ParseFromString(data)
-            print("Intercepted from quail:", msg.WhichOneof('message'))
-
-            self.gnd_sock.sendto(data, self.gnd_addr)
+            if msg.sequence == self.seq:
+                pass # this is meant for me, not ground
+            elif msg.sequence == self.gnd_seq:       
+                print("Intercepted from quail:", msg.WhichOneof('message'))
+                self.gnd_sock.sendto(data, self.gnd_addr)
 
     async def to_quail(self):
         while True:
             data, addr = await self.gnd_sock.recvfrom()
             self.gnd_addr = addr
-            start_udp = await self.intercept_udp_stream(data)
-            if not start_udp:
-                msg = Message()
-                msg.ParseFromString(data)
-                print("Intercepted to quail:", msg.WhichOneof('message'))
-                self.cmd_sock.sendto(data)
+                
+            msg = Message()
+            msg.ParseFromString(data)
+            self.gnd_seq = msg.sequence
+            print("Intercepted to quail:", msg.WhichOneof('message'))
+
+            new_data = await self.intercept_udp_stream(data)
+            self.seq += 1 # Audubon seq always at least one ahead of Ground seq
+
+            self.cmd_sock.sendto(new_data)
 
     async def ready(self):
         await self.setup_telemtry.get()
@@ -89,7 +98,7 @@ class AudubonClient:
         read_msg = Message()
         read_msg.ParseFromString(data)
         if read_msg.WhichOneof('message') != 'start_udp':
-            return False
+            return data
 
         hash = read_msg.start_udp.hash
         port = read_msg.start_udp.port
@@ -99,9 +108,7 @@ class AudubonClient:
                 if slate.name == 'telemetry':
                     self.setup_telemtry.put_nowait(1)
                 read_msg.start_udp.port = slate.udp_rcv_sock._transport._sock.getsockname()[1]
-        self.cmd_sock.sendto(read_msg.SerializeToString())
-
-        return True
+                return read_msg.SerializeToString()
 
     # qeries the device for a list of available slates, and populates the results into self.slates
     async def check_slate_info(self, data):
@@ -124,6 +131,10 @@ class AudubonClient:
     async def write_cmd(self, cmd_msg, forward=True):
         assert cmd_msg.WhichOneof('message') == 'set_field'
         if forward:
+            cmd_msg.seq = self.gnd_seq
+        else:
+            self.seq += 1
+            cmd_msg.sequence = self.seq
             self.cmd_sock.sendto(cmd_msg.SerializeToString())
 
     def __exit__(self, exc_type, exc_value, traceback):

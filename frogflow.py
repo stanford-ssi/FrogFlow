@@ -37,8 +37,6 @@ class Server:
     async def quail_rx_task(self):
         while (True):
             slate = await self.audubon.slates['telemetry'].recv_slate()
-            for valve in self.engine.valves:
-                valve.update(slate)
 
     async def quail_tx_task(self):
         while(True):

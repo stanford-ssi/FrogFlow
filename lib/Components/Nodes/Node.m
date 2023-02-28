@@ -32,7 +32,13 @@ classdef (Abstract) Node  < Component
                comp.attach_outlet_to(obj,height,false); % create reciprocal connection
            end
        end
-       function attach_outlet_to(obj,comp,height,recip)
+       function detach_inlets(obj)
+            for k=1:length(obj.inlet)
+                obj.inlet{k}.detach_outlets();
+            end
+            obj.inlet = {};
+       end
+        function attach_outlet_to(obj,comp,height,recip)
            if nargin < 4
               recip = true; % also create the reverse connection
            end
@@ -44,6 +50,12 @@ classdef (Abstract) Node  < Component
                comp.attach_inlet_to(obj,height,false); % create reciprocal connection
            end
        end
+       function detach_outlets(obj)
+            for k=1:length(obj.outlet)
+                obj.outlet{k}.detach_inlets();
+            end
+            obj.outlet = {};
+        end
        function ydot = odestatedot(obj)
            mdot = 0;
            Udot = 0;

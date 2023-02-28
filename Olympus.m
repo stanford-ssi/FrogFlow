@@ -21,3 +21,5 @@ orifice = Orifice(Cd,A);
 
 tank.attach_outlet_to(orifice,0);
 ambient.attach_inlet_to(orifice);
+
+fprintf('Matlab loaded mock Ortega engine\n')

@@ -15,8 +15,13 @@ class Engine:
             Tank("ambient", Engine.MATLAB, self.slate)
         ]
         self.valves = [
-            Valve("orifice", self.tanks[0], self.tanks[1], self.MATLAB)
+            Valve("orifice", self.tanks[0], self.tanks[1], Engine.MATLAB, self.slate)
         ]
+
+        for tank in self.tanks:
+            tank.update_handlers()
+        for valve in self.valves:
+            valve.update_handlers()
 
         self.sim = Simulation("sim", self.MATLAB)
 
@@ -30,14 +35,14 @@ class Engine:
 
     async def run(self):
         while True:
-            print("Simulation updating...")
             self.sim.run()
             for tank in self.tanks:
-                tank.update()
+                await tank.update()
             await asyncio.sleep(Simulation.UPDATE_TIME)
 
     async def update(self):
         while True:
+            print("updating engine")
             slate = await self.slate.recv_slate()
             for valve in self.valves:
                 valve.update(slate)

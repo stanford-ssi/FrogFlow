@@ -3,7 +3,7 @@ import matlab.engine
 from .SlateClient import SlateClient
 
 class Simulation:
-    UPDATE_TIME = 1
+    UPDATE_TIME = 2
     def __init__(self, name, engine):
         self.name = name
         self.eng = engine
@@ -26,30 +26,45 @@ class Tank:
         self.slate = slate
         self.handlers = []
 
-    def update(self):
+    async def update(self):
         for handler in self.handlers:
-            handler()
+            await handler()
 
     def update_handlers(self):
-        self.handlers = [lambda: self.slate.set_field(channel, self.eng.eval(channel), forward=False) for channel in self.slate.metaslate["channels"] if self.name in channel]
-    
+        self.handlers = []
+        for channel, fields in self.slate.metaslate['channels'].items():
+            matlab_cmd = fields['matlab'] if 'matlab' in fields else ""
+            if matlab_cmd.split('.')[0] == self.name:
+                self.handlers += [lambda: self.slate.set_field(channel, self.eng.eval(matlab_cmd)[-1][0], forward=False)]
+                return
+
 class Valve:
-    def __init__(self, name, inlet, outlet, engine):
+    def __init__(self, name, inlet, outlet, engine, slate):
         self.name = name
+        self.slate_key = ""
         self.eng = engine
         self.inlet = inlet
         self.outlet = outlet
-        self.value = -1
+        self.value = 1
+        self.slate = slate
 
-    def update(self, slate):
-        if self.name in slate and slate[self.name] != self.value:
-            self.value = slate[self.name]
+    def update_handlers(self):
+        for channel, fields in self.slate.metaslate['channels'].items():
+            matlab_name = fields['matlab'] if 'matlab' in fields else ""
+            if matlab_name == self.name:
+                self.slate_key = channel
+                return
+
+    def update(self, telemetry):
+        telem_value = telemetry[self.slate_key] if self.slate_key in telemetry else self.value
+        if telem_value != self.value:
+            self.value = telem_value
             self.attach() if self.value else self.detach()
 
     def attach(self):
-        self.eng(self.name + ".attach_inlet_to({})".format(self.inlet.name))
-        self.eng(self.name + ".attach_outlet_to({})".format(self.outlet.name))
+        self.eng(self.inlet.name + ".attach_outlet_to({}, 0);".format(self.name), nargout=0)
+        self.eng(self.outlet.name + ".attach_inlet_to({});".format(self.name), nargout=0)
 
     def detach(self):
-        self.eng(self.name + ".detach_inlets()")
-        self.eng(self.name + ".detach_outlets()")
+        self.eng(self.name + ".detach_inlets();", nargout=0)
+        self.eng(self.name + ".detach_outlets();", nargout=0)
