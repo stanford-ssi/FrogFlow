@@ -63,7 +63,13 @@ classdef (Abstract) Component < handle
                         obj.record.(fn{k}) = obj.record_nested_state(t_ind,DataStruct(s.(fn{k})));
                     end
                 else
-                    obj.record.(fn{k})(t_ind) = s.(fn{k});
+                    try
+                        obj.record.(fn{k})(t_ind) = s.(fn{k});
+                    catch ME
+                        if (strcmp(ME.identifier,'MATLAB:matrix:singleSubscriptNumelMismatch'))
+                            warning("A component failed to update, some valves might be off")
+                        end
+                    end
                 end
             end
         end

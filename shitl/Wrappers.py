@@ -62,9 +62,9 @@ class Valve:
             self.attach() if self.value else self.detach()
 
     def attach(self):
-        self.eng(self.inlet.name + ".attach_outlet_to({}, 0);".format(self.name), nargout=0)
-        self.eng(self.outlet.name + ".attach_inlet_to({});".format(self.name), nargout=0)
+        self.eng.eval("{}.attach_outlet_to({}, 0);".format(self.inlet.name, self.name), nargout=0)
+        self.eng.eval("{}.attach_inlet_to({});".format(self.outlet.name, self.name), nargout=0)
 
     def detach(self):
-        self.eng(self.name + ".detach_inlets();", nargout=0)
-        self.eng(self.name + ".detach_outlets();", nargout=0)
+        self.eng.eval("{}.detach_outlets();".format(self.inlet.name), nargout=0)
+        self.eng.eval("{}.detach_inlets();".format(self.outlet.name), nargout=0)

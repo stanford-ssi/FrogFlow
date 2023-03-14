@@ -40,13 +40,13 @@ classdef ComponentGraph < handle
            up = {};
            chid = ComponentGraphNode.newchain(1);
            while ~(isempty(comps_remaining))
-              if isa(comps_remaining{1},'Node') && ~comps_remaining{1}.ischild
+              if ~comps_remaining{1}.ischild && isa(comps_remaining{1},'Node')
                    [~, chhold, compnodes_handled,uphold] = ComponentGraph.make_chain(comps_remaining{1},chid);
                    rm_comp = false(1, numel(comps_remaining));
                    for j = 1:length(comps_remaining)
                       comp = comps_remaining{j};
-                      if ~isa(comp, 'Node') || comp.ischild % if is invalid type for updating (i.e. a child Node or a non-Node component)
-                         rm_comp(j) = true;
+                      if comp.ischild || ~isa(comp, 'Node')% if is invalid type for updating (i.e. a child Node or a non-Node component)
+                          rm_comp(j) = true;
                          continue;
                       end
                       for k = 1:length(compnodes_handled)
@@ -97,17 +97,19 @@ classdef ComponentGraph < handle
            while ~isa(root_comp, 'Node')
                this_node = ComponentGraphNode(root_comp, chain_id);
                exclude_list{end+1} = (this_node); % handling this root now - don't check it ever again      
+               next_comp = {};
                if dir == ComponentGraph.Inlet
                    next_comp = root_comp.inlet;
-               else
+               elseif dir == ComponentGraph.Outlet
                    next_comp = root_comp.outlet;
                end
                if ~isempty(next_comp) % if a component actually attached in the direction of search
                    root_comp = next_comp; % iterate on this component
                else % reached end of conduit chain without finding a node
-                   chain = {};
-                   update_order = {};
+                   chain = {this_node};
+                   update_order = {root_comp};
                    rootrow = 1;
+                   comp_chained = exclude_list;
                    return
                end
            end

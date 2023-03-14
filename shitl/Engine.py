@@ -46,5 +46,5 @@ class Engine:
             try:
                 for valve in self.valves:
                     valve.update(slate)
-            except:
-                print("Failure while updating valves")
+            except Exception as e:
+                print("Failure while updating valves", e)
