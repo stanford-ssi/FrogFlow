@@ -1,9 +1,10 @@
 import asyncio
 import matlab.engine
 from .SlateClient import SlateClient
+import numpy as np
 
 class Simulation:
-    UPDATE_TIME = 2
+    UPDATE_TIME = 25
     def __init__(self, name, engine):
         self.name = name
         self.eng = engine
@@ -25,17 +26,22 @@ class Tank:
         self.eng = engine
         self.slate = slate
         self.handlers = []
+        self.cmd = ""
 
     async def update(self):
-        for handler in self.handlers:
-            await handler()
+        channel, matlab_cmd = self.cmd
+        vals = np.array(self.eng.eval(matlab_cmd))[:,0]
+        for val in vals:
+            await self.slate.set_field(channel, val, forward=False)
+            await asyncio.sleep(Simulation.UPDATE_TIME / len(vals))
+
 
     def update_handlers(self):
         self.handlers = []
         for channel, fields in self.slate.metaslate['channels'].items():
             matlab_cmd = fields['matlab'] if 'matlab' in fields else ""
             if matlab_cmd.split('.')[0] == self.name:
-                self.handlers += [lambda: self.slate.set_field(channel, self.eng.eval(matlab_cmd)[-1][0], forward=False)]
+                self.cmd = (channel, matlab_cmd)
                 return
 
 class Valve:

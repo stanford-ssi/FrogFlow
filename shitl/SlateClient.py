@@ -51,7 +51,7 @@ class SlateClient:
 
             return slate
 
-    async def set_field(self,channel,value,forward=True):
+    async def set_field(self, channel, value, forward=True):
         if not forward:
             print("Setting", channel, "to", value)
 
