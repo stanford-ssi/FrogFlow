@@ -36,9 +36,8 @@ class Engine:
     async def run(self):
         while True:
             self.sim.run()
-            for tank in self.tanks:
-                await tank.update()
-            await asyncio.sleep(Simulation.UPDATE_TIME)
+            tasks = [ asyncio.create_task(tank.update()) for tank in self.tanks ]
+            [ await task for task in tasks]
 
     async def update(self):
         while True:

@@ -22,6 +22,10 @@ classdef TankLiquid < Node
            obj.m = obj.fluid.rho*V;
            obj.ode_state = [obj.m; obj.m*obj.fluid.u];
         end
+        function m = extract(obj)
+            m = obj.m;
+%             obj.ode_state = [obj.m; obj.m*obj.fluid.u];
+        end
         function update(obj, ~, ode_state)
             obj.m = ode_state(1);
             obj.ode_state = ode_state;

@@ -4,7 +4,7 @@ from .SlateClient import SlateClient
 import numpy as np
 
 class Simulation:
-    UPDATE_TIME = 25
+    UPDATE_TIME = 0.5
     def __init__(self, name, engine):
         self.name = name
         self.eng = engine

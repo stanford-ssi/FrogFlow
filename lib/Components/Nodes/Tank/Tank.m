@@ -89,6 +89,7 @@ classdef (Abstract) Tank < Node
             % Update nodes (just stores ode_state)
             obj.liquid_node.update(t,ode_liquid);
             obj.ullage_node.update(t,ode_ullage);
+            obj.ode_state = [obj.ullage_node.m; obj.ullage_node.m*obj.ullage_node.get_fluid().u; obj.liquid_node.m; obj.liquid_node.m*obj.liquid_node.get_fluid().u];
         end
         function zm = get.zmax(obj)
             zm = obj.V/obj.A;
@@ -98,6 +99,9 @@ classdef (Abstract) Tank < Node
         end
         function fp = get.fill_pct(obj)
             fp = obj.liquid_node.V/obj.V;
+        end
+        function p = extract(obj)
+            p = [obj.ullage_node.extract() obj.liquid_node.extract()];
         end
     end
 end

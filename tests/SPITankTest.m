@@ -17,11 +17,39 @@ orifice = Orifice(Cd,A);
 
 tank.attach_outlet_to(orifice,0);
 ambient.attach_inlet_to(orifice);
+tank.detach_outlets();
+ambient.detach_inlets();
+tank.attach_outlet_to(orifice,0);
+ambient.attach_inlet_to(orifice);
 
-
-tspan = [0 25];
+tspan = [0 20];
 sim.run(tspan);
 
+figure('Name','SPITank PT'); hold on;
+title("Tank Blowdown");
+xlabel("Simulation Time, s");
+legend;
+yyaxis left;
+plot(sim.time,tank.ullage_node.record.P,'DisplayName','Ullage Pressure');
+plot(sim.time,tank.liquid_node.record.P,'-o','DisplayName','Liquid Pressure');
+ylabel("Pressure, Pa");
+yyaxis right;
+plot(sim.time,tank.ullage_node.record.T,'DisplayName','Ullage Temp');
+plot(sim.time,tank.liquid_node.record.T,'-o','DisplayName','Liquid Temp');
+ylabel("Temp, K");
+
+figure('Name','SPITank Fill'); hold on;
+title("Tank");
+xlabel("Simulation Time, s");
+legend;
+yyaxis left;
+plot(sim.time,tank.record.zliq,'DisplayName','Liquid Height');
+ylabel("Liquid Height, m");
+yyaxis right;
+plot(sim.time,tank.record.fill_pct,'DisplayName','Fill Pct');
+ylabel("/% Full of Liquid");
+
+sim.run([0 20]);
 
 figure('Name','SPITank PT'); hold on;
 title("Tank Blowdown");

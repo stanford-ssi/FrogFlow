@@ -56,7 +56,7 @@ classdef Simulation < handle
    methods(Access=private)
        function [t, y] = integrate(obj,tspan,opts)
            obj.clear_flags();
-           [t,y] = ode15s(@(t,y)obj.statedot(t,y),tspan,obj.ode_state,opts);
+           [t,y] = ode15s(@(t,y)obj.statedot(t,y),tspan,obj.ode_state(),opts);
            SimEvent.update_events();
        end
        function [value,isterminal,direction] = terminalfunction(obj)

@@ -22,6 +22,9 @@ classdef TankUllage < Node
         function update(obj, ~, ode_state)
             obj.ode_state = ode_state;
         end
+        function p = extract(obj)
+            p = obj.fluid.pressure();
+        end
         function ydot = odestatedot(obj,inlet,outlet,dVdt)
            % first, collect flow from intra-tank components
            ydot = odestatedot@Node(obj);
